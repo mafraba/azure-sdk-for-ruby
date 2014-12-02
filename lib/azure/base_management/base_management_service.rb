@@ -32,7 +32,7 @@ module Azure
       def initialize(config)
         @config = config unless @config
         validate_configuration
-        cert_file = File.read(@config.management_certificate)
+        cert_file = read_management_certificate(@config.management_certificate)
         begin
           if @config.management_certificate =~ /(pem)$/
             certificate_key = OpenSSL::X509::Certificate.new(cert_file)
@@ -226,6 +226,15 @@ module Azure
                   " 'location' is invalid."\
                   " Allowed values are #{locations.join(',')}"
           raise error
+        end
+      end
+
+      def read_management_certificate(path_or_content)
+        begin
+          File.read(path_or_content)
+        rescue
+          # If it wasn't a correct file path we assume it's the content directly
+          path_or_content
         end
       end
     end
