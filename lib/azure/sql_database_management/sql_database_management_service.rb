@@ -18,8 +18,8 @@ module Azure
   module SqlDatabaseManagement
     class SqlDatabaseManagementService < BaseManagementService
 
-      def initialize
-        super()
+      def initialize(config)
+        super(config)
       end
 
       # Public: Gets a list of database servers available under the
@@ -30,7 +30,7 @@ module Azure
       # Returns an array of Azure::SqlDatabaseManagement::SqlDatabase objects
       def list_servers
         request_path = '/servers'
-        request = SqlManagementHttpRequest.new(:get, request_path, nil)
+        request = SqlManagementHttpRequest.new(@config, :get, request_path, nil)
         response = request.call
         Serialization.databases_from_xml(response)
       end
@@ -49,7 +49,7 @@ module Azure
       def create_server(login, password, location)
         body = Serialization.database_to_xml(login, password, location)
         request_path = '/servers'
-        request = SqlManagementHttpRequest.new(:post, request_path, body)
+        request = SqlManagementHttpRequest.new(@config, :post, request_path, body)
         response = request.call
         sql_server = Serialization.server_name_from_xml(response, login, location)
         Loggerx.info "SQL database server #{sql_server.name} is created." if sql_server
@@ -69,7 +69,7 @@ module Azure
       def delete_server(name)
         if get_sql_server(name)
           request_path = "/servers/#{name}"
-          request = SqlManagementHttpRequest.new(:delete, request_path)
+          request = SqlManagementHttpRequest.new(@config, :delete, request_path)
           request.call
           Loggerx.info "Deleted database server #{name}."
         end
@@ -90,7 +90,7 @@ module Azure
         if get_sql_server(name)
           body = Serialization.reset_password_to_xml(password)
           request_path = "/servers/#{name}?op=ResetPassword"
-          request = SqlManagementHttpRequest.new(:post, request_path, body)
+          request = SqlManagementHttpRequest.new(@config, :post, request_path, body)
           request.call
           Loggerx.info "Password for server #{name} changed successfully."
         end
@@ -127,9 +127,9 @@ module Azure
             request_path = "/servers/#{server_name}/firewallrules/#{rule_name}?op=AutoDetectClientIP"
             method = :post
           end
-          request = SqlManagementHttpRequest.new(method, request_path, body)
+          request = SqlManagementHttpRequest.new@config, (method, request_path, body)
           request.headers['x-ms-version'] = '1.0'
-          request.uri = URI.parse(Azure.config.sql_database_management_endpoint + Azure.config.subscription_id + request_path)
+          request.uri = URI.parse(@config.sql_database_management_endpoint + @config.subscription_id + request_path)
           # Management certificate authentication Endpoint throws errors for this operation. Need to re-visit
           # this once the Azure API is working.
 
@@ -151,9 +151,9 @@ module Azure
       def list_sql_server_firewall_rules(server_name)
         if get_sql_server(server_name)
           request_path = "/servers/#{server_name}/firewallrules"
-          request = SqlManagementHttpRequest.new(:get, request_path)
+          request = SqlManagementHttpRequest.new(@config, :get, request_path)
           response = request.call
-          Serialization.database_firewall_from_xml(response)
+          Serialization.database_firewall_from_xml(response, @config.sql_database_authentication_mode)
         end
       end
 
@@ -173,7 +173,7 @@ module Azure
           raise error
         elsif get_sql_server(server_name)
           request_path = "/servers/#{server_name}/firewallrules/#{rule_name}"
-          request = SqlManagementHttpRequest.new(:delete, request_path)
+          request = SqlManagementHttpRequest.new(@config, :delete, request_path)
           request.call
           Loggerx.info "Deleted server-level firewall rule #{rule_name}."
         end
@@ -189,7 +189,7 @@ module Azure
           if sql_server
             return sql_server
           else
-            error = Azure::Error::Error.new("DatabaseServerNotFound", 40647,  "Subscription #{Azure.config.subscription_id} does not have server #{server_name}.")
+            error = Azure::Error::Error.new("DatabaseServerNotFound", 40647,  "Subscription #{@config.subscription_id} does not have server #{server_name}.")
           end
         end
         raise error if error

@@ -18,8 +18,8 @@ include Azure::VirtualMachineImageManagement
 module Azure
   module VirtualMachineManagement
     class VirtualMachineManagementService < BaseManagementService
-      def initialize
-        super()
+      def initialize(config)
+        super
       end
 
       # Public: Get a lists of virtual machines available under the current subscription.
@@ -29,12 +29,12 @@ module Azure
         roles = []
         cloud_service_names.flatten!
         if cloud_service_names.empty?
-          cloud_service = Azure::CloudServiceManagementService.new
+          cloud_service = Azure::CloudServiceManagementService.new(@config)
           cloud_service_names = cloud_service.list_cloud_services.map(&:name)
         end
         cloud_service_names.each do |cloud_service_name|
           request_path = "/services/hostedservices/#{cloud_service_name}/deploymentslots/production"
-          request = ManagementHttpRequest.new(:get, request_path)
+          request = ManagementHttpRequest.new(@config, :get, request_path)
           request.warn = true
           response = request.call
           roles << Serialization.virtual_machines_from_xml(response, cloud_service_name)
@@ -112,7 +112,7 @@ module Azure
         options[:storage_account_name] ||= generate_storage_account_name(params[:vm_name])
         optionals = {}
         if options[:virtual_network_name]
-          virtual_network_service = Azure::VirtualNetworkManagementService.new
+          virtual_network_service = Azure::VirtualNetworkManagementService.new(@config)
           virtual_networks = virtual_network_service.list_virtual_networks.select { |x| x.name == options[:virtual_network_name] }
           if virtual_networks.empty?
             Loggerx.error_with_exit "Virtual network #{options[:virtual_network_name]} doesn't exists"
@@ -124,14 +124,14 @@ module Azure
         else
           optionals[:location] = params[:location]
         end
-        cloud_service = Azure::CloudServiceManagementService.new
+        cloud_service = Azure::CloudServiceManagementService.new(@config)
         cloud_service.create_cloud_service(options[:cloud_service_name], optionals)
         cloud_service.upload_certificate(options[:cloud_service_name], params[:certificate]) unless params[:certificate].empty?
-        Azure::StorageManagementService.new.create_storage_account(options[:storage_account_name], optionals)
+        Azure::StorageManagementService.new(@config).create_storage_account(options[:storage_account_name], optionals)
         body = Serialization.deployment_to_xml(params, options)
         path = "/services/hostedservices/#{options[:cloud_service_name]}/deployments"
         Loggerx.info 'Deployment in progress...'
-        request = ManagementHttpRequest.new(:post, path, body)
+        request = ManagementHttpRequest.new(@config, :post, path, body)
         request.call
         get_virtual_machine(params[:vm_name], options[:cloud_service_name])
       rescue Exception => e
@@ -198,7 +198,7 @@ module Azure
         body = Serialization.role_to_xml(params, options).to_xml
         path = "/services/hostedservices/#{cloud_service.name}/deployments/#{deployment_name}/roles"
         Loggerx.info 'Deployment in progress...'
-        request = ManagementHttpRequest.new(:post, path, body)
+        request = ManagementHttpRequest.new(@config, :post, path, body)
         request.call
         get_virtual_machine(params[:vm_name], cloud_service.name)
       end
@@ -219,18 +219,18 @@ module Azure
         vm = virtual_machines.select { |x| x.vm_name == vm_name }.first
         if vm
           if virtual_machines.size == 1
-            cloud_service = Azure::CloudServiceManagementService.new
+            cloud_service = Azure::CloudServiceManagementService.new(@config)
             cloud_service.delete_cloud_service_deployment(cloud_service_name)
             cloud_service.delete_cloud_service(cloud_service_name)
           else
             path = "/services/hostedservices/#{vm.cloud_service_name}/deployments/#{vm.deployment_name}/roles/#{vm.vm_name}"
             Loggerx.info "Deleting virtual machine #{vm_name}. \n"
-            request = ManagementHttpRequest.new(:delete, path)
+            request = ManagementHttpRequest.new(@config, :delete, path)
             request.call
           end
           Loggerx.info "Waiting for disk to be released.\n"
           disk_name = vm.disk_name
-          disk_management_service = VirtualMachineDiskManagementService.new
+          disk_management_service = VirtualMachineDiskManagementService.new(@config)
           # Wait for 180s for disk to be released.
           disk = nil
           18.times do
@@ -250,7 +250,7 @@ module Azure
         else
           Loggerx.error "Cannot find virtual machine #{vm_name} under cloud service #{cloud_service_name}"
         end
-      rescue
+      # rescue
       end
 
       # Public: Shuts down the specified virtual machine.
@@ -272,7 +272,7 @@ module Azure
             path = "/services/hostedservices/#{vm.cloud_service_name}/deployments/#{vm.deployment_name}/roleinstances/#{vm.vm_name}/Operations"
             body = Serialization.shutdown_virtual_machine_to_xml
             Loggerx.info "Shutting down virtual machine \"#{vm.vm_name}\" ..."
-            request = ManagementHttpRequest.new(:post, path, body)
+            request = ManagementHttpRequest.new(@config, :post, path, body)
             request.call
           else
             Loggerx.error 'Cannot perform the shutdown operation on a stopped deployment.'
@@ -301,7 +301,7 @@ module Azure
             path = "/services/hostedservices/#{vm.cloud_service_name}/deployments/#{vm.deployment_name}/roleinstances/#{vm.vm_name}/Operations"
             body = Serialization.start_virtual_machine_to_xml
             Loggerx.info "Starting virtual machine \"#{vm.vm_name}\" ..."
-            request = ManagementHttpRequest.new(:post, path, body)
+            request = ManagementHttpRequest.new(@config, :post, path, body)
             request.call
           end
         else
@@ -325,7 +325,7 @@ module Azure
           path = "/services/hostedservices/#{vm.cloud_service_name}/deployments/#{vm.deployment_name}/roleinstances/#{vm.vm_name}/Operations"
           body = Serialization.restart_virtual_machine_to_xml
           Loggerx.info "Restarting virtual machine \"#{vm.vm_name}\" ..."
-          request = ManagementHttpRequest.new(:post, path, body)
+          request = ManagementHttpRequest.new(@config, :post, path, body)
           request.call
         else
           Loggerx.error "Cannot find virtual machine \"#{vm_name}\" under cloud service \"#{cloud_service_name}\"."
@@ -386,7 +386,7 @@ module Azure
           end
           endpoints += input_endpoints
           body = Serialization.update_role_to_xml(endpoints, vm)
-          request = ManagementHttpRequest.new(:put, path, body)
+          request = ManagementHttpRequest.new(@config, :put, path, body)
           Loggerx.info "Updating endpoints of virtual machine #{vm.vm_name} ..."
           request.call
         else
@@ -412,7 +412,7 @@ module Azure
           endpoints = vm.tcp_endpoints + vm.udp_endpoints
           endpoints.delete_if { |ep| endpoint_name.downcase == ep[:name].downcase }
           body = Serialization.update_role_to_xml(endpoints, vm)
-          request = ManagementHttpRequest.new(:put, path, body)
+          request = ManagementHttpRequest.new(@config, :put, path, body)
           Loggerx.info "Deleting virtual machine endpoint #{endpoint_name} ..."
           request.call
         else
@@ -450,7 +450,7 @@ module Azure
           path = "/services/hostedservices/#{cloud_service_name}/deployments/#{vm.deployment_name}/roles/#{vm_name}/DataDisks"
           body = Serialization.add_data_disk_to_xml(vm, options)
           Loggerx.info "Adding data disk to virtual machine #{vm_name} ..."
-          request = ManagementHttpRequest.new(:post, path, body)
+          request = ManagementHttpRequest.new(@config, :post, path, body)
           request.call
         else
           Loggerx.error "Cannot find virtual machine \"#{vm_name}\" under cloud service \"#{cloud_service_name}\"."
@@ -463,7 +463,7 @@ module Azure
       #
       # Returns Linux or Windows
       def get_os_type(image_name)
-        image_service = Azure::VirtualMachineImageManagementService.new
+        image_service = Azure::VirtualMachineImageManagementService.new(@config)
         image = image_service.list_virtual_machine_images.select { |x| x.name == image_name }.first
         Loggerx.error_with_exit 'The virtual machine image source is not valid.' unless image
         image.os_type
@@ -536,7 +536,7 @@ module Azure
       end
 
       def validate_location(location_name)
-        locations = Azure::BaseManagementService.new.list_locations
+        locations = Azure::BaseManagementService.new(@config).list_locations
         location = locations.select { |loc| loc.name.downcase == location_name.downcase }.first
         if location.nil?
           Loggerx.error_with_exit "Value '#{location_name}' specified for parameter 'location' is invalid. Allowed values are #{locations.map(&:name).join(',')}"

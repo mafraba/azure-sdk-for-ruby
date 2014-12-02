@@ -19,9 +19,10 @@ module Azure
   module Queue
     class QueueService < Service::StorageService
 
-      def initialize
-        super()
-        @host = Azure.config.storage_queue_host
+      def initialize(config)
+        signer = Core::Auth::SharedKey.new(config.storage_account_name, config.storage_access_key)
+        super(signer, config.storage_account_name)
+        @host = config.storage_queue_host
       end
 
       # Public: Get a list of Queues from the server

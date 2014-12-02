@@ -29,11 +29,12 @@ Loggerx = Azure::Core::Logger
 module Azure
   module BaseManagement
     class BaseManagementService
-      def initialize
+      def initialize(config)
+        @config = config unless @config
         validate_configuration
-        cert_file = File.read(Azure.config.management_certificate)
+        cert_file = File.read(@config.management_certificate)
         begin
-          if Azure.config.management_certificate =~ /(pem)$/
+          if @config.management_certificate =~ /(pem)$/
             certificate_key = OpenSSL::X509::Certificate.new(cert_file)
             private_key = OpenSSL::PKey::RSA.new(cert_file)
           else
@@ -47,27 +48,25 @@ module Azure
         rescue Exception => e
           raise "Management certificate not valid. Error: #{e.message}"
         end
-
-        Azure.configure do |config|
-          config.http_certificate_key = certificate_key
-          config.http_private_key = private_key
-        end
+        
+        @config.http_certificate_key = certificate_key
+        @config.http_private_key = private_key
       end
 
       def validate_configuration
-        subs_id = Azure.config.subscription_id
+        subs_id = @config.subscription_id
         error_message = 'Subscription ID not valid.'
         raise error_message if subs_id.nil? || subs_id.empty?
 
-        m_ep = Azure.config.management_endpoint
+        m_ep = @config.management_endpoint
         error_message = 'Management endpoint not valid.'
         raise error_message if m_ep.nil? || m_ep.empty?
 
-        m_cert = Azure.config.management_certificate
+        m_cert = @config.management_certificate
         error_message = "Could not read from file '#{m_cert}'."
         raise error_message unless test('r', m_cert)
 
-        m_cert = Azure.config.management_certificate
+        m_cert = @config.management_certificate
         error_message = 'Management certificate expects a .pem or .pfx file.'
         raise error_message unless m_cert =~ /(pem|pfx)$/
       end
@@ -76,7 +75,7 @@ module Azure
       #
       # Returns an array of Azure::BaseManagement::Location objects
       def list_locations
-        request = ManagementHttpRequest.new(:get, '/locations')
+        request = ManagementHttpRequest.new(@config, :get, '/locations')
         response = request.call
         Serialization.locations_from_xml(response)
       end
@@ -89,7 +88,7 @@ module Azure
       # Returns an array of Azure::BaseManagement::AffinityGroup objects
       def list_affinity_groups
         request_path = '/affinitygroups'
-        request = ManagementHttpRequest.new(:get, request_path, nil)
+        request = ManagementHttpRequest.new(@config, :get, request_path, nil)
         response = request.call
         Serialization.affinity_groups_from_xml(response)
       end
@@ -130,7 +129,7 @@ module Azure
                                                      label,
                                                      options)
           request_path = '/affinitygroups'
-          request = ManagementHttpRequest.new(:post, request_path, body)
+          request = ManagementHttpRequest.new(@config, :post, request_path, body)
           request.call
           Loggerx.info "Affinity Group #{name} is created."
         end
@@ -159,7 +158,7 @@ module Azure
         if affinity_group(name)
           body = Serialization.resource_to_xml(label, options)
           request_path = "/affinitygroups/#{name}"
-          request = ManagementHttpRequest.new(:put, request_path, body)
+          request = ManagementHttpRequest.new(@config, :put, request_path, body)
           request.call
           Loggerx.info "Affinity Group #{name} is updated."
         end
@@ -177,7 +176,7 @@ module Azure
       def delete_affinity_group(name)
         if affinity_group(name)
           request_path = "/affinitygroups/#{name}"
-          request = ManagementHttpRequest.new(:delete, request_path)
+          request = ManagementHttpRequest.new(@config, :delete, request_path)
           request.call
           Loggerx.info "Deleted affinity group #{name}."
         end
@@ -196,7 +195,7 @@ module Azure
       def get_affinity_group(name)
         if affinity_group(name)
           request_path = "/affinitygroups/#{name}"
-          request = ManagementHttpRequest.new(:get, request_path)
+          request = ManagementHttpRequest.new(@config, :get, request_path)
           response = request.call
           Serialization.affinity_group_from_xml(response)
         end

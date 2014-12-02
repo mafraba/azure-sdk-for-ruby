@@ -22,9 +22,9 @@ module Azure
     module Auth
       class WrapSigner < Azure::Core::Auth::Signer
 
-        def initialize
+        def initialize(host, issuer, key)
           @tokens = {}
-          @wrap_service = Azure::ServiceBus::Auth::WrapService.new
+          @wrap_service = Azure::ServiceBus::Auth::WrapService.new(host, issuer, key)
         end
 
         attr_accessor :tokens

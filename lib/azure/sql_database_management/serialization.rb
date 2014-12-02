@@ -75,9 +75,9 @@ module Azure
         builder.doc.to_xml
       end
 
-      def self.database_firewall_from_xml(response_xml)
+      def self.database_firewall_from_xml(response_xml, sql_database_authentication_mode)
         firewalls = []
-        if Azure.config.sql_database_authentication_mode == :sql_server
+        if sql_database_authentication_mode == :sql_server
           database_firewallXML = response_xml.css('FirewallRules  FirewallRule')
           database_firewallXML.each do |firewall_xml|
             firewall = {

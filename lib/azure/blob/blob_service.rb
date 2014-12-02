@@ -20,9 +20,11 @@ module Azure
   module Blob
     class BlobService < Service::StorageService
 
-      def initialize
-        super()
-        @host = Azure.config.storage_blob_host
+      def initialize(config)
+        signer = Core::Auth::SharedKey.new(config.storage_account_name, config.storage_access_key)
+        storage_account_name = config.storage_account_name
+        super(signer, storage_account_name)
+        @host = config.storage_blob_host
       end
 
       # Public: Get a list of Containers from the server

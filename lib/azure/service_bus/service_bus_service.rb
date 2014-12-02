@@ -25,17 +25,17 @@ module Azure
 
       DEFAULT_TIMEOUT = 60
 
-      def initialize(host=Azure.config.service_bus_host)
-        super(Azure::ServiceBus::Auth::WrapSigner.new)
-          @host = host
-          
-          with_filter do |req, res| 
-            req.headers.delete "x-ms-date"
-            req.headers.delete "x-ms-version"
-            req.headers.delete "DataServiceVersion"
-            req.headers.delete "MaxDataServiceVersion"
-            res.call
-          end
+      def initialize(config)
+        super(Azure::ServiceBus::Auth::WrapSigner.new(config.acs_host, config.sb_issuer, config.sb_access_key))
+        @host = @config.service_bus_host
+        
+        with_filter do |req, res| 
+          req.headers.delete "x-ms-date"
+          req.headers.delete "x-ms-version"
+          req.headers.delete "DataServiceVersion"
+          req.headers.delete "MaxDataServiceVersion"
+          res.call
+        end
       end
 
       # Creates a new queue. Once created, this queue's resource manifest is immutable. 

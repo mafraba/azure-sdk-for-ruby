@@ -12,47 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #--------------------------------------------------------------------------
-require "singleton"
 
 module Azure
 
-  # Proxy config method.
-  def self.config
-    Core.config
-  end
-
-  # Proxy configure method.
-  def self.configure
-    yield Core.config
-  end
-
   module Core
 
-    # Public: Sugar to configure the services in a neatly wrapped DSL.
-    #
-    # Yields the Azure::Configuration instance.
-    #
-    # Example:
-    #
-    #   Azure.configure do |config|
-    #     config.storage_account_name = ENV["AZURE_STORAGE_ACCOUNT"]
-    #   end
-    #
-    # Returns nothing.
-    def self.configure
-      yield config
-    end
-
-    # Public: Access the service configuration.
-    #
-    # Returns the Azure::Configuration instance.
-    def self.config
-      Configuration.instance
-    end
-
-    # Singleton that keeps the configuration of the system.
+    # Class for configuration objects
     class Configuration
-      include Singleton
 
       # Public: Get/Set the Access Key for this service.
       attr_accessor :storage_access_key
