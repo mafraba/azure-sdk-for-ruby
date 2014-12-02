@@ -127,7 +127,7 @@ module Azure
             request_path = "/servers/#{server_name}/firewallrules/#{rule_name}?op=AutoDetectClientIP"
             method = :post
           end
-          request = SqlManagementHttpRequest.new@config, (method, request_path, body)
+          request = SqlManagementHttpRequest.new(@config, method, request_path, body)
           request.headers['x-ms-version'] = '1.0'
           request.uri = URI.parse(@config.sql_database_management_endpoint + @config.subscription_id + request_path)
           # Management certificate authentication Endpoint throws errors for this operation. Need to re-visit
