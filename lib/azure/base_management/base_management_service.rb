@@ -36,13 +36,17 @@ module Azure
           if Azure.config.management_certificate =~ /(pem)$/
             certificate_key = OpenSSL::X509::Certificate.new(cert_file)
             private_key = OpenSSL::PKey::RSA.new(cert_file)
-          else
-          # Parse pfx content
+          elsif Azure.config.management_certificate =~ /(pfx)$/
+            # Parse pfx content
             cert_content = OpenSSL::PKCS12.new(Base64.decode64(cert_file))
             certificate_key = OpenSSL::X509::Certificate.new(
               cert_content.certificate.to_pem
             )
             private_key = OpenSSL::PKey::RSA.new(cert_content.key.to_pem)
+          else
+            # only support 'pem' content for the moment
+            certificate_key = OpenSSL::X509::Certificate.new(cert_file)
+            private_key = OpenSSL::PKey::RSA.new(cert_file)
           end
         rescue Exception => e
           raise "Management certificate not valid. Error: #{e.message}"
@@ -64,12 +68,8 @@ module Azure
         raise error_message if m_ep.nil? || m_ep.empty?
 
         m_cert = Azure.config.management_certificate
-        error_message = "Could not read from file '#{m_cert}'."
-        raise error_message unless test('r', m_cert)
-
-        m_cert = Azure.config.management_certificate
-        error_message = 'Management certificate expects a .pem or .pfx file.'
-        raise error_message unless m_cert =~ /(pem|pfx)$/
+        error_message = "Management certificate not specified"
+        raise error_message if m_cert.nil? || m_cert.empty?  
       end
 
       # Public: Gets a list of regional data center locations from the server
