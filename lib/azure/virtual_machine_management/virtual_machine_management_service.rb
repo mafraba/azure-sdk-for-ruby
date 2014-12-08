@@ -394,6 +394,19 @@ module Azure
         end
       end
 
+      def set_endpoints(vm_name, cloud_service_name, input_endpoints)
+        vm = get_virtual_machine(vm_name, cloud_service_name)
+        if vm
+          path = "/services/hostedservices/#{vm.cloud_service_name}/deployments/#{vm.deployment_name}/roles/#{vm_name}"
+          body = Serialization.update_role_to_xml(input_endpoints, vm)
+          request = ManagementHttpRequest.new(:put, path, body)
+          Loggerx.info "Setting endpoints for virtual machine #{vm.vm_name} ..."
+          request.call
+        else
+          Loggerx.error "Cannot find virtual machine \"#{vm_name}\" under cloud service \"#{cloud_service_name}\"."
+        end
+      end
+
       # Public: Delete endpoint of virtual machine.
       #
       # ==== Attributes

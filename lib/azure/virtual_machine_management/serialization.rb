@@ -365,6 +365,7 @@ module Azure
           timeout = endpoint[:load_balancer][:timeout]
           path = endpoint[:load_balancer][:path]
           balancer_name = endpoint[:load_balancer_name]
+          allowed_sources = endpoint[:allowed_sources]
           xml.InputEndpoint do
             xml.LoadBalancedEndpointSetName balancer_name if balancer_name
             xml.LocalPort endpoint[:local_port]
@@ -381,6 +382,17 @@ module Azure
             end
             xml.Protocol protocol
             xml.EnableDirectServerReturn endpoint[:direct_server_return] unless endpoint[:direct_server_return].nil?
+            if allowed_sources
+              xml.EndpointAcl do
+                xml.Rules do
+                  xml.Rule do
+                    xml.Order '1'
+                    xml.Action 'permit'
+                    xml.RemoteSubnet allowed_sources
+                  end
+                end
+              end
+            end
           end
         end
       end
