@@ -399,7 +399,7 @@ module Azure
         if vm
           path = "/services/hostedservices/#{vm.cloud_service_name}/deployments/#{vm.deployment_name}/roles/#{vm_name}"
           body = Serialization.update_role_to_xml(input_endpoints, vm)
-          request = ManagementHttpRequest.new(:put, path, body)
+          request = ManagementHttpRequest.new(@config, :put, path, body)
           Loggerx.info "Setting endpoints for virtual machine #{vm.vm_name} ..."
           request.call
         else
